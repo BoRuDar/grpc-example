@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+service Calc {
+  rpc Calculate (Request) returns (Response) {}
+}
+
+enum OP {
+  ADD = 0;
+  MUL = 1;
+}
+
+message Request {
+  OP op = 1;
+  float a = 2;
+  float b = 3;
+}
+
+message Response {
+  OP op = 1;
+  float result = 3;
+}
