@@ -2,9 +2,9 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"io"
 	"log"
-	"os"
-	"strconv"
 	"time"
 
 	"github.com/BoRuDar/grpc-example/internal/models"
@@ -22,26 +22,32 @@ func main() {
 
 	c := pb.NewCalcClient(conn)
 
-	if len(os.Args) != 4 {
-		log.Fatalf("expected number of arguments: 3")
-	}
-	a, _ := strconv.ParseFloat(os.Args[2], 32)
-	b, _ := strconv.ParseFloat(os.Args[3], 32)
-	var op pb.OP
-	switch os.Args[1] {
-	case "add":
-		op = pb.OP_ADD
-	case "mul":
-		op = pb.OP_MUL
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-
-	r, err := c.Calculate(ctx, &pb.Request{Op: op, A: float32(a), B: float32(b)})
+	stream, err := c.Echo(context.Background())
 	if err != nil {
-		log.Fatalf("could not calculate: %v", err)
+		log.Fatalf("could not create stream: %v", err)
 	}
 
-	log.Printf("Result: %f", r.GetResult())
+	go func() {
+		for i := 0; true; i++ {
+			msg := fmt.Sprintf("Text from client: %d", i)
+
+			err = stream.Send(&pb.Msg{Text: msg})
+			if err != nil {
+				log.Fatalf("could not send: %v", err)
+			}
+			time.Sleep(time.Second)
+		}
+	}()
+
+	for {
+		in, err := stream.Recv()
+		if err == io.EOF {
+			return
+		}
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		fmt.Printf("Got from client: %s\n", in.Text)
+	}
 }

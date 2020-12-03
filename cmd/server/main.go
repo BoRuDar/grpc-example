@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"net"
+	"time"
 
 	pb "github.com/BoRuDar/grpc-example/internal/models/api"
 
@@ -17,23 +19,33 @@ type server struct {
 	pb.UnimplementedCalcServer
 }
 
-func (s *server) Calculate(ctx context.Context, in *pb.Request) (*pb.Response, error) {
-	log.Printf("Received: %+v", in)
+func (s *server) Echo(stream pb.Calc_EchoServer) error {
+	go func() {
+		for i := 0; true; i++ {
+			srvMsg := &pb.Msg{Text: fmt.Sprintf("Text from server: %d", i)}
 
-	var result float32
+			if err := stream.Send(srvMsg); err != nil {
+				log.Println(err)
+			}
+			time.Sleep(time.Second * 2)
+		}
+	}()
 
-	switch in.Op {
-	case pb.OP_ADD:
-		result = in.A + in.B
+	for {
+		in, err := stream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
 
-	case pb.OP_MUL:
-		result = in.A * in.B
-
-	default:
-		return nil, fmt.Errorf("OP[%v] is not implemented", in.Op)
+		fmt.Printf("Got from client: %s\n", in.Text)
 	}
+}
 
-	return &pb.Response{Result: result}, nil
+func (s *server) Calculate(ctx context.Context, in *pb.Request) (*pb.Response, error) {
+	return &pb.Response{Result: 0}, nil
 }
 
 func main() {

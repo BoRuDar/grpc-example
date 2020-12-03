@@ -2,6 +2,8 @@ syntax = "proto3";
 
 service Calc {
   rpc Calculate (Request) returns (Response) {}
+
+  rpc Echo(stream Msg) returns (stream Msg) {}
 }
 
 enum OP {
@@ -18,4 +20,8 @@ message Request {
 message Response {
   OP op = 1;
   float result = 3;
+}
+
+message Msg {
+  string text = 1;
 }

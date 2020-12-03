@@ -18,6 +18,7 @@ const _ = grpc.SupportPackageIsVersion7
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type CalcClient interface {
 	Calculate(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
+	Echo(ctx context.Context, opts ...grpc.CallOption) (Calc_EchoClient, error)
 }
 
 type calcClient struct {
@@ -37,11 +38,43 @@ func (c *calcClient) Calculate(ctx context.Context, in *Request, opts ...grpc.Ca
 	return out, nil
 }
 
+func (c *calcClient) Echo(ctx context.Context, opts ...grpc.CallOption) (Calc_EchoClient, error) {
+	stream, err := c.cc.NewStream(ctx, &_Calc_serviceDesc.Streams[0], "/Calc/Echo", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &calcEchoClient{stream}
+	return x, nil
+}
+
+type Calc_EchoClient interface {
+	Send(*Msg) error
+	Recv() (*Msg, error)
+	grpc.ClientStream
+}
+
+type calcEchoClient struct {
+	grpc.ClientStream
+}
+
+func (x *calcEchoClient) Send(m *Msg) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *calcEchoClient) Recv() (*Msg, error) {
+	m := new(Msg)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // CalcServer is the server API for Calc service.
 // All implementations must embed UnimplementedCalcServer
 // for forward compatibility
 type CalcServer interface {
 	Calculate(context.Context, *Request) (*Response, error)
+	Echo(Calc_EchoServer) error
 	mustEmbedUnimplementedCalcServer()
 }
 
@@ -51,6 +84,9 @@ type UnimplementedCalcServer struct {
 
 func (UnimplementedCalcServer) Calculate(context.Context, *Request) (*Response, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Calculate not implemented")
+}
+func (UnimplementedCalcServer) Echo(Calc_EchoServer) error {
+	return status.Errorf(codes.Unimplemented, "method Echo not implemented")
 }
 func (UnimplementedCalcServer) mustEmbedUnimplementedCalcServer() {}
 
@@ -62,7 +98,7 @@ type UnsafeCalcServer interface {
 }
 
 func RegisterCalcServer(s grpc.ServiceRegistrar, srv CalcServer) {
-	s.RegisterService(&Calc_ServiceDesc, srv)
+	s.RegisterService(&_Calc_serviceDesc, srv)
 }
 
 func _Calc_Calculate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -83,10 +119,33 @@ func _Calc_Calculate_Handler(srv interface{}, ctx context.Context, dec func(inte
 	return interceptor(ctx, in, info, handler)
 }
 
-// Calc_ServiceDesc is the grpc.ServiceDesc for Calc service.
-// It's only intended for direct use with grpc.RegisterService,
-// and not to be introspected or modified (even as a copy)
-var Calc_ServiceDesc = grpc.ServiceDesc{
+func _Calc_Echo_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(CalcServer).Echo(&calcEchoServer{stream})
+}
+
+type Calc_EchoServer interface {
+	Send(*Msg) error
+	Recv() (*Msg, error)
+	grpc.ServerStream
+}
+
+type calcEchoServer struct {
+	grpc.ServerStream
+}
+
+func (x *calcEchoServer) Send(m *Msg) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *calcEchoServer) Recv() (*Msg, error) {
+	m := new(Msg)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+var _Calc_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "Calc",
 	HandlerType: (*CalcServer)(nil),
 	Methods: []grpc.MethodDesc{
@@ -95,6 +154,13 @@ var Calc_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Calc_Calculate_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "Echo",
+			Handler:       _Calc_Echo_Handler,
+			ServerStreams: true,
+			ClientStreams: true,
+		},
+	},
 	Metadata: "api/api.proto",
 }
