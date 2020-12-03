@@ -11,6 +11,7 @@ import (
 	pb "github.com/BoRuDar/grpc-example/internal/models/api"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 const port = ":50051"
@@ -54,7 +55,12 @@ func main() {
 		log.Fatalf("failed to listen: %v", err)
 	}
 
-	s := grpc.NewServer()
+	creds, err := credentials.NewServerTLSFromFile("server.crt", "server.key")
+	if err != nil {
+		panic(err)
+	}
+
+	s := grpc.NewServer(grpc.Creds(creds))
 	pb.RegisterCalcServer(s, &server{})
 
 	if err := s.Serve(lis); err != nil {

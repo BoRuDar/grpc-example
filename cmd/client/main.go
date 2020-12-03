@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"google.golang.org/grpc/credentials"
 	"io"
 	"log"
 	"time"
@@ -14,7 +15,12 @@ import (
 )
 
 func main() {
-	conn, err := grpc.Dial(models.DefaultAddress, grpc.WithInsecure(), grpc.WithBlock())
+	creds, err := credentials.NewClientTLSFromFile("server.crt", "")
+	if err != nil {
+		panic(err)
+	}
+
+	conn, err := grpc.Dial(models.DefaultAddress, grpc.WithTransportCredentials(creds))
 	if err != nil {
 		log.Fatalf("did not connect: %v", err)
 	}
