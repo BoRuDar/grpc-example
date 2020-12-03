@@ -54,6 +54,6 @@ func main() {
 			log.Fatal(err)
 		}
 
-		fmt.Printf("Got from client: %s\n", in.Text)
+		fmt.Printf("Got from server: %s\n", in.Text)
 	}
 }
